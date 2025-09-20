@@ -44,60 +44,18 @@ async def startup_event():
     import runpy
     try:
         runpy.run_path("data.py")
+        print("Successfully ran data.py to refresh Notion pages")
     except Exception as ex:
         print(f"Error running data.py: {ex}")
 
+    # Skip MCP client setup for Railway deployment
+    # Railway doesn't support Docker containers, so we'll only use team_chat
+    print("Railway deployment: Using team_chat endpoint only (no MCP containers)")
+    
     global client, tools, agent
-    try:
-        client = MultiServerMCPClient(
-            {
-                "mcp-atlassian": {
-                    "command": "docker",
-                    "args": [
-                        "run",
-                        "-i",
-                        "--rm",
-                        "-e", "CONFLUENCE_URL",
-                        "-e", "CONFLUENCE_USERNAME",
-                        "-e", "CONFLUENCE_API_TOKEN",
-                        "-e", "JIRA_URL",
-                        "-e", "JIRA_USERNAME",
-                        "-e", "JIRA_API_TOKEN",
-                        "ghcr.io/sooperset/mcp-atlassian:latest"
-                    ],
-                    "env": {
-                        "CONFLUENCE_URL": os.getenv("CONFLUENCE_URL"),
-                        "CONFLUENCE_USERNAME": os.getenv("CONFLUENCE_USERNAME"),
-                        "CONFLUENCE_API_TOKEN": os.getenv("CONFLUENCE_API_TOKEN"),
-                        "JIRA_URL": os.getenv("JIRA_URL"),
-                        "JIRA_USERNAME": os.getenv("JIRA_USERNAME"),
-                        "JIRA_API_TOKEN": os.getenv("JIRA_API_TOKEN")
-                    },
-                    "transport": "stdio",
-                },
-                "mcp-notion": {
-                    "command": "docker",
-                    "args": [
-                        "run",
-                        "-i",
-                        "--rm",
-                        "-e", "OPENAPI_MCP_HEADERS",
-                        "mcp/notion"
-                    ],
-                    "env": {
-                        "OPENAPI_MCP_HEADERS": os.getenv("OPENAPI_MCP_HEADERS")
-                        # e.g., '{"Authorization":"Bearer ntn_XXXX...","Notion-Version":"2022-06-28"}'
-                    },
-                    "transport": "stdio",
-                }
-            }
-        )
-
-        tools = await client.get_tools()
-        agent = create_react_agent('gpt-4o', tools=tools)
-        print(f"Successfully initialized with {len(tools)} tools")
-    except Exception as ex:
-        print(ex)
+    client = None
+    tools = []
+    agent = None
 
 
 class ChatInput(BaseModel):
@@ -121,6 +79,11 @@ class ChatOutput(BaseModel):
 @app.post("/chat", response_model=ChatOutput)
 async def chat_endpoint(chat_input: ChatInput):
     try:
+        if agent is None:
+            # Redirect to team_chat since MCP agent is not available on Railway
+            team_response = await team_chat_endpoint(chat_input)
+            return ChatOutput(response=team_response.responses.get("team", "No response available"))
+        
         response = await agent.ainvoke(
             {"messages": [HumanMessage(content=chat_input.message)]}
         )
@@ -128,7 +91,8 @@ async def chat_endpoint(chat_input: ChatInput):
         print(f"AI message {ai_response_message}")
         return ChatOutput(response=ai_response_message)
     except Exception as ex:
-        print(ex)
+        print(f"Error in chat endpoint: {ex}")
+        raise HTTPException(status_code=500, detail=str(ex))
 
 # --- New Team Chat Endpoint ---
 
@@ -204,4 +168,5 @@ async def team_chat_endpoint(chat_input: ChatInput):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)

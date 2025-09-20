@@ -10,8 +10,8 @@ uvicorn
 requests
 pydantic
 notion-client
-psycopg2
-phi
+psycopg2-binary
+phidata
 pytest
 langchain-core
 openai

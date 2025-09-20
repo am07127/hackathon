@@ -14,11 +14,14 @@ if not OPENAI_API_KEY:
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 def make_notion_agent():
+    # Use Railway's DATABASE_URL environment variable
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://ai:ai@localhost:5532/ai")
+    
     knowledge_base = CSVKnowledgeBase(
         path="notion_pages.csv",
         vector_db=PgVector(
             table_name="csv_documents",
-            db_url="postgresql+psycopg://ai:ai@localhost:5532/ai",
+            db_url=db_url,
         ),
     )
     agent = Agent(
