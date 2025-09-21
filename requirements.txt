@@ -16,3 +16,5 @@ pytest
 langchain-core
 openai
 pandas
+plotly
+streamlit-plotly-events

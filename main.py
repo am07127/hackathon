@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from notion_agent import run_notion_query, make_notion_agent
 from jira_agent import run_jira_query, make_jira_agent
+from confluence_agent import run_confluence_query, make_confluence_agent
 from phi.agent import Agent
 from phi.model.openai import OpenAIChat
 
@@ -144,26 +145,33 @@ async def team_chat_endpoint(chat_input: ChatInput):
         # Instantiate individual agents
         notion_agent = make_notion_agent()
         jira_agent = make_jira_agent()
+        confluence_agent = make_confluence_agent()
 
         # Build a team agent
         team_instructions = [
-            "You are leading a team of specialized agents to provide comprehensive answers combining project management and knowledge base information",
-            "Coordinate between the Notion Knowledge Specialist and Jira Project Management Specialist to provide complete responses",
-            "When the user asks about projects, tasks, or work items, consult the Jira specialist for current status and the Notion specialist for relevant documentation",
-            "For strategic questions, roadmaps, or procedures, prioritize the Notion specialist while getting context from Jira about current implementation status",
-            "Always provide a synthesis of information from both sources when relevant",
-            "Include sources and references from both systems in your final response",
-            "Use clear formatting with headers, bullet points, and tables when presenting information",
-            "If information from one system contradicts the other, highlight the discrepancy and explain the context",
-            "Prioritize actionable insights and next steps in your responses",
-            "When information is incomplete from one source, explicitly leverage the other source to fill gaps"
+            "You are the lead Project Intelligence Agent, commanding a team of exactly THREE specialized sub-agents. Your mission is to provide comprehensive, synthesized answers by consulting ALL THREE sources—Jira, Confluence, AND Notion.",
+            "",
+            "Your team consists of:",
+            "• Jira Project Management Specialist: Provides real-time project status, task assignments, and work item progress.",
+            "• Confluence Knowledge Specialist: Provides technical documentation, procedural guides, and organizational knowledge.",
+            "• Notion Knowledge Specialist: Provides high-level strategic plans, roadmaps, and detailed notes.",
+            "",
+            "CRITICAL DIRECTIVES:",
+            "1. ALWAYS Consult ALL THREE Specialists: For every user query, you MUST transfer tasks to ALL THREE agents (Jira, Confluence, AND Notion) to ensure comprehensive coverage. Do not skip any agent.",
+            "2. Transfer Tasks Explicitly: Use transfer_task_to_jira_project_management_specialist, transfer_task_to_confluence_knowledge_specialist, AND transfer_task_to_notion_knowledge_specialist for every query.",
+            "3. Build Context and Cohesion: Do not simply list information. Build a coherent narrative that connects tasks in Jira to their documentation in Confluence and their strategic purpose in Notion.",
+            "4. Provide a Cohesive Summary: Present the synthesized information clearly, using bold keywords, headings, and bullet points.",
+            "5. Identify and Resolve Discrepancies: If information from different sources conflicts, highlight the discrepancy and provide context to explain it.",
+            "6. Focus on Actionable Insights: Conclude your response with clear, actionable insights or next steps based on ALL THREE sources.",
+            "7. Maintain Transparency: Always cite your sources by clearly referencing the application (e.g., 'From Jira,' 'From Confluence,' 'From Notion').",
+            "8. Quality Control: Ensure you have gathered information from all three platforms before providing your final synthesis."
         ]
         team_agent = Agent(
             name="Integrated Workspace Assistant",
-            role="Team leader coordinating specialized agents to provide comprehensive workspace insights",
-            description="You are an expert workspace assistant that coordinates between project management (Jira) and knowledge management (Notion) specialists to provide comprehensive, actionable insights about projects, tasks, documentation, and organizational processes.",
+            role="Team leader coordinating ALL THREE specialized agents (Jira, Confluence, and Notion) to provide comprehensive workspace insights",
+            description="You are an expert workspace assistant that coordinates between project management (Jira), technical documentation (Confluence), and knowledge management (Notion) specialists. You MUST consult all three agents for every query to provide comprehensive, actionable insights about projects, tasks, documentation, and organizational processes.",
             model=OpenAIChat(id="gpt-4o"),
-            team=[notion_agent, jira_agent],
+            team=[notion_agent, jira_agent, confluence_agent],
             instructions=team_instructions,
             markdown=True,
             show_tool_calls=True,
