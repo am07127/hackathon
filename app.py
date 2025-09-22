@@ -1,3 +1,4 @@
+
 import streamlit as st
 import requests
 import json
@@ -8,89 +9,137 @@ import plotly.express as px
 
 # Page configuration
 st.set_page_config(
-    page_title="Unified Knowledge Engine",
+    page_title="شعور.ai - Unified Knowledge Engine",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for modern, sleek design
+# Custom CSS for modern dark theme design
 st.markdown("""
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;700;800&family=Amiri:wght@400;700&family=Roboto:wght@400;600&display=swap" rel="stylesheet">
 <style>
+    /* Main app background */
+    .stApp {
+        background: linear-gradient(135deg, #0a0e1a 0%, #1a1a2e 50%, #16213e 100%);
+        color: #e0e6ed;
+    }
+    
+    /* Main content area */
+    .main .block-container {
+        background: transparent;
+        color: #e0e6ed;
+    }
+    
     .main-header {
-        font-size: 3rem;
+        font-size: 4rem;
         font-weight: 700;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(90deg, #4a9eff 0%, #00d4ff 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
         margin-bottom: 1rem;
+        font-family: 'Noto Sans Arabic', 'Arial Unicode MS', Arial, sans-serif;
+        direction: rtl;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .app-name {
+        font-size: 4.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #4a9eff 0%, #00d4ff 50%, #0ea5e9 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        margin-bottom: 0.5rem;
+        font-family: 'Noto Sans Arabic', 'Amiri', 'Times New Roman', serif;
+        direction: rtl;
+        text-shadow: 3px 3px 6px rgba(0,0,0,0.4);
+        letter-spacing: 2px;
+    }
+    
+    .app-extension {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #4a9eff;
+        text-align: center;
+        margin-bottom: 1rem;
+        font-family: 'Roboto', 'Arial', sans-serif;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
     }
     
     .subtitle {
         font-size: 1.2rem;
-        color: #666;
+        color: #a0a9c0;
         text-align: center;
         margin-bottom: 2rem;
         font-weight: 300;
     }
     
     .mode-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border: 1px solid #475569;
+        color: #e0e6ed;
         padding: 1.5rem;
         border-radius: 15px;
         margin: 1rem 0;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
         transition: transform 0.3s ease;
     }
     
     .mode-card:hover {
         transform: translateY(-5px);
+        border: 1px solid #4a9eff;
+        box-shadow: 0 12px 35px rgba(74, 158, 255, 0.2);
     }
     
     .stats-card {
-        background: white;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border: 1px solid #475569;
+        color: #e0e6ed;
         padding: 1.5rem;
         border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        border-left: 4px solid #667eea;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        border-left: 4px solid #4a9eff;
         margin: 1rem 0;
     }
     
     .chat-container {
-        background: white;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        border: 1px solid #475569;
         border-radius: 15px;
         padding: 1rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         margin: 1rem 0;
     }
     
     .source-badge {
-        background: linear-gradient(90deg, #667eea, #764ba2);
-        color: white;
+        background: linear-gradient(90deg, #4a9eff, #00d4ff);
+        color: #0a0e1a;
         padding: 0.25rem 0.75rem;
         border-radius: 20px;
         font-size: 0.8rem;
         margin: 0.25rem;
         display: inline-block;
+        font-weight: 600;
     }
     
     .metric-card {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        background: linear-gradient(135deg, #4a9eff 0%, #0ea5e9 100%);
         color: white;
         padding: 1rem;
         border-radius: 10px;
         text-align: center;
         margin: 0.5rem;
+        box-shadow: 0 4px 15px rgba(74, 158, 255, 0.3);
     }
     
     .sidebar .sidebar-content {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(180deg, #CC8899 0%, #AA6677 100%);
     }
     
     .stButton > button {
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(90deg, #4a9eff 0%, #0ea5e9 100%);
         color: white;
         border: none;
         border-radius: 25px;
@@ -101,17 +150,53 @@ st.markdown("""
     
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 8px 25px rgba(74, 158, 255, 0.4);
+        background: linear-gradient(90deg, #0ea5e9 0%, #4a9eff 100%);
     }
     
     .agent-indicator {
-        background: #00ff88;
-        color: #000;
+        background: #00d4ff;
+        color: #0a0e1a;
         padding: 0.25rem 0.5rem;
         border-radius: 15px;
         font-size: 0.7rem;
         font-weight: bold;
         margin-left: 0.5rem;
+    }
+    
+    /* Chat message styling */
+    .stChatMessage {
+        background: rgba(30, 41, 59, 0.8) !important;
+        border: 1px solid #475569;
+        border-radius: 10px;
+    }
+    
+    /* Input styling */
+    .stTextInput > div > div > input {
+        background: #1e293b;
+        color: #e0e6ed;
+        border: 1px solid #475569;
+        border-radius: 10px;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #4a9eff;
+        box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2);
+    }
+    
+    /* Markdown text styling */
+    .stMarkdown {
+        color: #e0e6ed;
+    }
+    
+    /* Plotly chart background */
+    .js-plotly-plot {
+        background: transparent !important;
+    }
+    
+    /* Section headers */
+    h1, h2, h3, h4, h5, h6 {
+        color: #e0e6ed !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -132,8 +217,9 @@ FASTAPI_URL = "http://localhost:8080"
 
 def create_hero_section():
     """Create an impressive hero section"""
-    st.markdown('<h1 class="main-header">🧠 Unified Knowledge Engine</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="subtitle">Breaking down data silos • Unifying knowledge • Empowering decisions</p>', unsafe_allow_html=True)
+    st.markdown('<h1 class="app-name">شعور</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="app-extension">.ai</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Artificial Intelligence • Breaking down data silos • Unifying knowledge • Empowering decisions</p>', unsafe_allow_html=True)
     
     # Key metrics dashboard
     col1, col2, col3, col4 = st.columns(4)
@@ -179,7 +265,6 @@ def create_mode_selector():
     with col1:
         if st.button("🤖 Team Intelligence", key="team_mode", use_container_width=True):
             st.session_state.current_mode = "team"
-            st.rerun()
         
         st.markdown("""
         <div class="mode-card">
@@ -197,11 +282,10 @@ def create_mode_selector():
     with col2:
         if st.button("⚡ MCP Intelligence", key="mcp_mode", use_container_width=True):
             st.session_state.current_mode = "mcp"
-            st.rerun()
         
         st.markdown("""
         <div class="mode-card">
-            <h3>⚡ MCP Protocol</h3>
+            <h3>⚡ MCP Agent</h3>
             <p><strong>Direct Tool Access</strong></p>
             <ul>
                 <li>🔧 Native API Integration</li>
@@ -236,15 +320,15 @@ def send_team_query(prompt):
             response = requests.post(
                 f"{FASTAPI_URL}/team_chat",
                 json={"message": prompt},
-                timeout=120  # Increased to 2 minutes
+                timeout=300  # Increased to 5 minutes
             )
             
             if response.status_code == 200:
                 response_data = response.json()
                 ai_response = response_data.get("responses", {}).get("team", "No response generated")
-                sources = response_data.get("sources", [])
                 
-                return ai_response, sources
+                
+                return ai_response
             else:
                 return f"Error: {response.status_code} - {response.text}", []
                 
@@ -262,7 +346,7 @@ def send_mcp_query(prompt):
             response = requests.post(
                 f"{FASTAPI_URL}/chat",
                 json={"message": prompt},
-                timeout=120  # Increased to 2 minutes
+                timeout=300  # Increased to 5 minutes
             )
             
             if response.status_code == 200:
@@ -281,6 +365,7 @@ def send_mcp_query(prompt):
 
 def create_chat_interface():
     """Create the main chat interface"""
+    sources = None
     mode_name = "Team Intelligence" if st.session_state.current_mode == "team" else "MCP Intelligence"
     mode_icon = "🤖" if st.session_state.current_mode == "team" else "⚡"
     
@@ -313,7 +398,7 @@ def create_chat_interface():
         
         # Send to appropriate endpoint
         if st.session_state.current_mode == "team":
-            ai_response, sources = send_team_query(prompt)
+            ai_response = send_team_query(prompt)
         else:
             ai_response, sources = send_mcp_query(prompt)
         
@@ -332,69 +417,9 @@ def create_chat_interface():
             st.markdown(ai_response)
             if sources:
                 display_sources(sources)
-        
-        st.rerun()
-
-def create_sidebar():
-    """Create an informative sidebar"""
-    with st.sidebar:
-        st.markdown("## 🚀 Platform Overview")
-        
-        st.markdown("""
-        ### 🎯 **Mission**
-        Transform scattered organizational knowledge into unified, actionable intelligence.
-        
-        ### 🔧 **Technology Stack**
-        - **FastAPI**: High-performance backend
-        - **Multi-Agent Architecture**: Specialized AI agents
-        - **MCP Protocol**: Direct tool integration
-        - **Vector Databases**: Intelligent knowledge retrieval
-        
-        ### 📊 **Connected Platforms**
-        """)
-        
-        # Platform status indicators
-        platforms = [
-            ("Jira", "🟢", "Project Management"),
-            ("Confluence", "🟢", "Documentation"),
-            ("Notion", "🟢", "Knowledge Base")
-        ]
-        
-        for platform, status, description in platforms:
-            st.markdown(f"""
-            <div class="stats-card">
-                <strong>{status} {platform}</strong><br>
-                <small>{description}</small>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("### 🔄 **Session Stats**")
-        
-        if st.session_state.query_count > 0:
-            # Create a simple chart
-            fig = go.Figure(data=go.Bar(
-                x=['Team Chat', 'MCP Chat'],
-                y=[len(st.session_state.messages_team), len(st.session_state.messages_mcp)],
-                marker_color=['#667eea', '#764ba2']
-            ))
-            fig.update_layout(
-                title="Queries by Mode",
-                height=300,
-                showlegend=False
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        if st.button("🔄 Reset Session", use_container_width=True):
-            for key in st.session_state.keys():
-                if key.startswith('messages_'):
-                    st.session_state[key] = []
-            st.session_state.query_count = 0
-            st.session_state.sources_accessed = set()
-            st.rerun()
 
 # Main application flow
 def main():
-    create_sidebar()
     create_hero_section()
     
     st.markdown("---")
@@ -409,8 +434,8 @@ def main():
     st.markdown("---")
     st.markdown("""
     <div style="text-align: center; color: #666; padding: 2rem;">
-        <p>🧠 <strong>Unified Knowledge Engine</strong> - Powered by Multi-Agent AI Architecture</p>
-        <p><em>Breaking down silos, one query at a time.</em></p>
+        <p>🧠 <strong>شعور.ai</strong> - Powered by Multi-Agent AI Architecture</p>
+        <p><em>Artificial Intelligence • Breaking down silos, one query at a time.</em></p>
     </div>
     """, unsafe_allow_html=True)
 

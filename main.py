@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
 from fastapi.middleware.cors import CORSMiddleware
 
-from notion_agent import run_notion_query, make_notion_agent
-from jira_agent import run_jira_query, make_jira_agent
-from confluence_agent import run_confluence_query, make_confluence_agent
+from notion_agent import  make_notion_agent
+from jira_agent import make_jira_agent
+from confluence_agent import make_confluence_agent
 from phi.agent import Agent
 from phi.model.openai import OpenAIChat
 
@@ -29,6 +29,10 @@ app = FastAPI()
 client = None
 tools = []
 agent = None
+notion_agent = None
+jira_agent = None
+confluence_agent = None
+team_agent = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,10 +49,11 @@ async def startup_event():
     import runpy
     try:
         runpy.run_path("data.py")
+        runpy.run_path("import_confluence.py")
     except Exception as ex:
         print(f"Error running data.py: {ex}")
 
-    global client, tools, agent
+    global client, tools, agent, notion_agent, jira_agent, confluence_agent, team_agent
     try:
         client = MultiServerMCPClient(
             {
@@ -97,56 +102,12 @@ async def startup_event():
         tools = await client.get_tools()
         agent = create_react_agent('gpt-4o', tools=tools)
         print(f"Successfully initialized with {len(tools)} tools")
-    except Exception as ex:
-        print(ex)
-
-
-class ChatInput(BaseModel):
-    message: str
-
-
-from typing import List, Dict, Any
-
-class SourceInfo(BaseModel):
-    agent: str
-    sources: List[str]
-
-class TeamChatOutput(BaseModel):
-    responses: Dict[str, str]
-    sources: List[SourceInfo]
-
-class ChatOutput(BaseModel):
-    response: str
-
-
-@app.post("/chat", response_model=ChatOutput)
-async def chat_endpoint(chat_input: ChatInput):
-    try:
-        response = await agent.ainvoke(
-            {"messages": [HumanMessage(content=chat_input.message)]}
-        )
-        ai_response_message = response["messages"][-1].content
-        print(f"AI message {ai_response_message}")
-        return ChatOutput(response=ai_response_message)
-    except Exception as ex:
-        print(ex)
-
-# --- New Team Chat Endpoint ---
-
-# --- Multi-Agent Team Implementation ---
-from phi.agent import Agent as PhiAgent
-
-import importlib
-
-
-@app.post("/team_chat", response_model=TeamChatOutput)
-async def team_chat_endpoint(chat_input: ChatInput):
-    try:
-        # Instantiate individual agents
+        
+        # Initialize individual agents
         notion_agent = make_notion_agent()
         jira_agent = make_jira_agent()
         confluence_agent = make_confluence_agent()
-
+        
         # Build a team agent
         team_instructions = [
             "You are the lead Project Intelligence Agent, commanding a team of exactly THREE specialized sub-agents. Your mission is to provide comprehensive, synthesized answers by consulting ALL THREE sources—Jira, Confluence, AND Notion.",
@@ -181,6 +142,53 @@ async def team_chat_endpoint(chat_input: ChatInput):
             prevent_hallucinations=True,
             add_transfer_instructions=True
         )
+        
+        print("Successfully initialized all agents (MCP agent, Notion agent, Jira agent, Confluence agent, and Team agent)")
+        
+    except Exception as ex:
+        print(f"Error during startup: {ex}")
+
+
+class ChatInput(BaseModel):
+    message: str
+
+
+from typing import List, Dict, Any
+
+class SourceInfo(BaseModel):
+    agent: str
+    sources: List[str]
+
+class TeamChatOutput(BaseModel):
+    responses: Dict[str, str]
+    # sources: List[SourceInfo]
+
+class ChatOutput(BaseModel):
+    response: str
+
+
+@app.post("/chat", response_model=ChatOutput)
+async def chat_endpoint(chat_input: ChatInput):
+    try:
+        response = await agent.ainvoke(
+            {"messages": [HumanMessage(content=chat_input.message)]}
+        )
+        ai_response_message = response["messages"][-1].content
+        print(f"AI message {ai_response_message}")
+        return ChatOutput(response=ai_response_message)
+    except Exception as ex:
+        print(ex)
+
+# --- New Team Chat Endpoint ---
+
+@app.post("/team_chat", response_model=TeamChatOutput)
+async def team_chat_endpoint(chat_input: ChatInput):
+    try:
+        # Use pre-instantiated team agent
+        global team_agent
+        
+        if team_agent is None:
+            raise HTTPException(status_code=500, detail="Team agent not initialized. Please wait for startup to complete.")
 
         # Run the team agent and capture the response
         response = team_agent.run(chat_input.message, stream=False)
@@ -192,18 +200,18 @@ async def team_chat_endpoint(chat_input: ChatInput):
 
         # Optionally extract other fields like tools used, context, etc.
         # e.g., response.messages, response.context, etc.
-        sources = []
-        if hasattr(response, 'context') and response.context is not None:
-            # If context contains source info, extract
-            # This is illustrative; you’ll need to adapt depending how your agents/tooling store source info
-            for ctx in response.context:
-                # If ctx has a “source” or similar field
-                src = getattr(ctx, "source", None)
-                if src:
-                    sources.append(src)
+        # sources = []
+        # if hasattr(response, 'context') and response.context is not None:
+        #     # If context contains source info, extract
+        #     # This is illustrative; you’ll need to adapt depending how your agents/tooling store source info
+        #     for ctx in response.context:
+        #         # If ctx has a “source” or similar field
+        #         src = getattr(ctx, "source", None)
+        #         if src:
+        #             sources.append(src)
 
         # Return structured output
-        return TeamChatOutput(responses={"team": str(content)}, sources=sources)
+        return TeamChatOutput(responses={"team": str(content)})
 
     except Exception as ex:
         # For debugging/logging
